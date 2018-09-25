@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Emgchart</string>
+    <string name="none">No devices paired</string>
+    <string name="title_connected_to">connected to </string>
+    <string name="title_not_connected">not connected</string>
+    <string name="title_connecting">connecting to</string>
+
+</resources>
+
