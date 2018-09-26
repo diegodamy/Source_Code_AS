@@ -5,7 +5,8 @@ import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Intent;
-import android.support.v4.app.FragmentActivity;
+import android.graphics.Color;
+import android.graphics.Point;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.os.Handler;
@@ -15,18 +16,20 @@ import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.github.mikephil.charting.charts.LineChart;
+import com.github.mikephil.charting.components.Legend;
+import com.github.mikephil.charting.components.XAxis;
+import com.github.mikephil.charting.components.YAxis;
 import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
 
-import java.lang.ref.WeakReference;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -34,6 +37,21 @@ public class MainActivity extends AppCompatActivity {
 
     //DEBUG
     private static final String TAG = "BluetoothSignal";
+
+    private float xValue = 1;
+
+    //GLOBAL VARIABLES
+    private List<Entry> yValues; //Entries of signal.
+    private Point[] dataPlot = {
+            new Point(0,0)
+    };
+    private LineDataSet dataSet;  //set of data.
+    private List<ILineDataSet> dataSets; // set of data.
+    private LineData data; //data to plot.
+    private XAxis xAxis;
+    private StringBuilder sb;
+
+
 
     //Layout Components
     private LineChart chart;
@@ -51,10 +69,14 @@ public class MainActivity extends AppCompatActivity {
     private BluetoothAdapter btAdapter = null;
     private BluetoothService btService = null;
 
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        initGraph();
 
         btAdapter = BluetoothAdapter.getDefaultAdapter();
 
@@ -63,31 +85,9 @@ public class MainActivity extends AppCompatActivity {
             finish();
         }
 
-
         btButton = (Button) findViewById(R.id.btConnect);
-        chart = (LineChart) findViewById(R.id.chart);
         textBt = (TextView) findViewById(R.id.btSelected);
 
-
-        List<Entry> yValues = new ArrayList<>();
-        yValues.add(new Entry(0,60f));
-        yValues.add(new Entry(1,50f));
-        yValues.add(new Entry(2,40f));
-        yValues.add(new Entry(3,30f));
-        yValues.add(new Entry(4,20f));
-        yValues.add(new Entry(5,10f));
-        yValues.add(new Entry(6,40f));
-        yValues.add(new Entry(7,80f));
-
-        LineDataSet set1 = new LineDataSet(yValues, "mV");
-        set1.setFillAlpha(110);
-
-        List<ILineDataSet> dataSets = new ArrayList<>();
-        dataSets.add(set1);
-
-        LineData data = new LineData(dataSets);
-
-        chart.setData(data);
 
         btButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -101,6 +101,7 @@ public class MainActivity extends AppCompatActivity {
             Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(enableBtIntent,REQUEST_ENABLE_BT);
         }
+
 
 
     }
@@ -142,6 +143,86 @@ public class MainActivity extends AppCompatActivity {
         if(btService != null){
             btService.stop();
         }
+    }
+
+    public void initGraph(){
+
+        chart = (LineChart) findViewById(R.id.chart);
+
+        //Chart format
+
+        chart.getDescription().setEnabled(false);
+
+        //Place xAxis below chart and adjust startValue.
+        xAxis = chart.getXAxis();
+        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
+        xAxis.setDrawGridLines(false);
+        xAxis.setAxisMinimum(0f);
+        //xAxis.setAxisMaximum(10f);
+
+        //Remove right Y axis.
+        YAxis rightYAxis = chart.getAxisRight();
+        rightYAxis.setEnabled(false);
+
+        //Adjust yAxis values.
+        YAxis yAxis = chart.getAxisLeft();
+        yAxis.setAxisMaximum(5f);
+        yAxis.setAxisMinimum(0f);
+        yAxis.setDrawGridLines(false);
+
+        //Remove legend.
+        Legend legend = chart.getLegend();
+        legend.setEnabled(false);
+
+
+        //Entries List.
+        yValues = new ArrayList<>();
+
+        for(Point data: dataPlot){
+            yValues.add(new Entry(data.x,data.y));
+        }
+
+        // DataSet for entries.
+        dataSet = new LineDataSet(yValues, "mV");
+
+        // DataSet Line format.
+        dataSet.setColor(Color.RED);
+        dataSet.setDrawCircleHole(false);
+        dataSet.setDrawCircles(false);
+        dataSet.setDrawValues(false);
+
+        //In case of more than 1 dataset.
+        dataSets = new ArrayList<>();
+        dataSets.add(dataSet);
+
+        data = new LineData(dataSets);
+
+        //Set data to the chart.
+        chart.setData(data);
+        chart.invalidate();
+
+//        List<ILineDataSet> dataSets = new ArrayList<>();
+//        dataSets.add(dataSet);
+//
+//        LineData data = new LineData(dataSets);
+//
+//        chart.setData(data);
+    }
+
+    public void updateGraph(float x, float y){
+        dataSet.addEntry(new Entry(x,y));
+        chart.notifyDataSetChanged(); //notify the chart that there's new value
+        //Toast.makeText(getApplicationContext(), Integer.toString(dataSet.getEntryCount()),Toast.LENGTH_SHORT).show();
+        chart.fitScreen();
+        xAxis.setAxisMaximum(dataSet.getEntryCount());
+        chart.invalidate();
+    }
+
+    public int convertDataFromBT(String s){
+
+
+
+        return 2;
     }
 
     /**
@@ -258,6 +339,17 @@ public class MainActivity extends AppCompatActivity {
                     // construct a string from the valid bytes in the buffer
                     String readMessage = new String(readBuf, 0, msg.arg1);
                     textBt.setText(readMessage);
+                    convertDataFromBT(readMessage);
+
+                    if(Character.isDigit(readMessage.charAt(0)) || readMessage.equals("V")) {
+                        sb.append(readMessage);//append string
+                        if(readMessage.equals("")){
+
+                        }
+
+                        updateGraph(dataSet.getEntryCount(), Integer.parseInt(readMessage));
+                        xValue += 0.1;
+                    }
                     //mConversationArrayAdapter.add(mConnectedDeviceName + ":  " + readMessage);
                     break;
                 case Constants.MESSAGE_DEVICE_NAME:
@@ -275,8 +367,6 @@ public class MainActivity extends AppCompatActivity {
             return true;
         }
     }
-
-
 
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         switch (requestCode) {
@@ -325,8 +415,6 @@ public class MainActivity extends AppCompatActivity {
         // Attempt to connect to the device
         btService.connect(device, secure);
     }
-
-
 
 
     @Override
