@@ -7,6 +7,8 @@ import android.bluetooth.BluetoothDevice;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Point;
+import android.os.Environment;
+import android.provider.DocumentsContract;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.os.Handler;
@@ -30,6 +32,11 @@ import com.github.mikephil.charting.data.LineDataSet;
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
 
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.sql.Array;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -70,7 +77,6 @@ public class MainActivity extends AppCompatActivity {
     private BluetoothService btService = null;
 
 
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -101,9 +107,7 @@ public class MainActivity extends AppCompatActivity {
             Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(enableBtIntent,REQUEST_ENABLE_BT);
         }
-
-
-
+        
     }
 
 
@@ -115,7 +119,7 @@ public class MainActivity extends AppCompatActivity {
             Intent enableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(enableIntent, REQUEST_ENABLE_BT);
         }else if(btService == null){
-            Toast.makeText(this,"Hola",Toast.LENGTH_SHORT).show();
+            //Toast.makeText(this,"Hola",Toast.LENGTH_SHORT).show();
             setupGraph();
         }
     }
@@ -220,9 +224,52 @@ public class MainActivity extends AppCompatActivity {
 
     public int convertDataFromBT(String s){
 
-
-
         return 2;
+    }
+
+    private void createFile(List<Valores> values){
+        String COMMA_DELIMITER = ",";
+        String LINE_SEPARATOR = "\n";
+        String FILE_HEADER = "sample,value";
+
+        File root = new File(Environment.getExternalStorageDirectory().getAbsolutePath(),"PruebasSignal");
+        if(!root.exists()){
+            boolean wasSuccessful = root.mkdirs();
+            if(!wasSuccessful){
+                Toast.makeText(this,"No root created",Toast.LENGTH_SHORT).show();
+            }
+        } else {
+            Toast.makeText(this,"Root Exist",Toast.LENGTH_SHORT).show();
+        }
+
+        File csv = new File(root,"prueba.csv");
+
+
+        List<Valores> valuesToFile = new ArrayList<>();
+        valuesToFile.add(new Valores(0,2));
+        valuesToFile.add(new Valores(1,3));
+        valuesToFile.add(new Valores(2,4));
+        valuesToFile.add(new Valores(3,5));
+        valuesToFile.add(new Valores(4,6));
+
+        try {
+            FileWriter file = new FileWriter(csv);
+            file.append(FILE_HEADER);
+            for (Valores val: valuesToFile){
+                file.append(LINE_SEPARATOR);
+                file.append(Integer.toString(val.getSample()));
+                file.append(COMMA_DELIMITER);
+                file.append(Float.toString(val.getVal()));
+                file.append(COMMA_DELIMITER);
+                //Toast.makeText(this,"File created",Toast.LENGTH_SHORT).show();
+            }
+            file.flush();
+            file.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+            Toast.makeText(this,"File not created",Toast.LENGTH_SHORT).show();
+        }
+
     }
 
     /**
