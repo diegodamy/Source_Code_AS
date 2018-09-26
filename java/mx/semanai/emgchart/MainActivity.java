@@ -107,7 +107,7 @@ public class MainActivity extends AppCompatActivity {
             Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(enableBtIntent,REQUEST_ENABLE_BT);
         }
-        
+
     }
 
 
@@ -226,6 +226,12 @@ public class MainActivity extends AppCompatActivity {
 
         return 2;
     }
+
+    /**
+     * Creates a CSV file and saves it to the externalstorage
+     *
+     * @param values List with data to save.
+     */
 
     private void createFile(List<Valores> values){
         String COMMA_DELIMITER = ",";
