@@ -2,13 +2,15 @@ package mx.semanai.emgchart;
 
 import android.app.ActionBar;
 import android.app.Activity;
+import android.app.ProgressDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Point;
+import android.net.Uri;
 import android.os.Environment;
-import android.provider.DocumentsContract;
+import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.os.Handler;
@@ -30,12 +32,19 @@ import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.OnProgressListener;
+import com.google.firebase.storage.StorageReference;
+import com.google.firebase.storage.UploadTask;
 
 
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.sql.Array;
 import java.util.ArrayList;
 import java.util.List;
@@ -58,11 +67,11 @@ public class MainActivity extends AppCompatActivity {
     private XAxis xAxis;
     private StringBuilder sb;
 
-
+    private StorageReference storage;
 
     //Layout Components
     private LineChart chart;
-    private Button btButton;
+    private Button btButton, btnLoad;
     private TextView textBt;
 
     // Intent request codes
@@ -84,6 +93,8 @@ public class MainActivity extends AppCompatActivity {
 
         initGraph();
 
+
+
         btAdapter = BluetoothAdapter.getDefaultAdapter();
 
         if(btAdapter == null ){
@@ -91,7 +102,9 @@ public class MainActivity extends AppCompatActivity {
             finish();
         }
 
+        storage = FirebaseStorage.getInstance().getReference();
         btButton = (Button) findViewById(R.id.btConnect);
+        btnLoad = (Button) findViewById(R.id.btnLoad);
         textBt = (TextView) findViewById(R.id.btSelected);
 
 
@@ -103,10 +116,19 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        btnLoad.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+            }
+        });
+
         if (!btAdapter.isEnabled()){
             Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(enableBtIntent,REQUEST_ENABLE_BT);
         }
+
+//        createFileAndUpload();
+//        upload();
 
     }
 
@@ -182,9 +204,9 @@ public class MainActivity extends AppCompatActivity {
         //Entries List.
         yValues = new ArrayList<>();
 
-        for(Point data: dataPlot){
-            yValues.add(new Entry(data.x,data.y));
-        }
+//        for(Point data: dataPlot){
+//            yValues.add(new Entry(data.x,data.y));
+//        }
 
         // DataSet for entries.
         dataSet = new LineDataSet(yValues, "mV");
@@ -202,8 +224,8 @@ public class MainActivity extends AppCompatActivity {
         data = new LineData(dataSets);
 
         //Set data to the chart.
-        chart.setData(data);
-        chart.invalidate();
+//        chart.setData(data);
+//        chart.invalidate();
 
 //        List<ILineDataSet> dataSets = new ArrayList<>();
 //        dataSets.add(dataSet);
@@ -230,10 +252,11 @@ public class MainActivity extends AppCompatActivity {
     /**
      * Creates a CSV file and saves it to the externalstorage
      *
-     * @param values List with data to save.
+     *  values List with data to save.
      */
 
-    private void createFile(List<Valores> values){
+    private void createFileAndUpload(){
+
         String COMMA_DELIMITER = ",";
         String LINE_SEPARATOR = "\n";
         String FILE_HEADER = "sample,value";
@@ -267,7 +290,6 @@ public class MainActivity extends AppCompatActivity {
                 file.append(COMMA_DELIMITER);
                 file.append(Float.toString(val.getVal()));
                 file.append(COMMA_DELIMITER);
-                //Toast.makeText(this,"File created",Toast.LENGTH_SHORT).show();
             }
             file.flush();
             file.close();
@@ -276,6 +298,72 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this,"File not created",Toast.LENGTH_SHORT).show();
         }
 
+//        StorageReference fileRef = storage.child("prueba/prueba.csv");
+//        Uri fileToUpload = Uri.fromFile(csv);
+//
+//        fileRef.putFile(fileToUpload)
+//                .addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+//                    @Override
+//                    public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+//
+//                    }
+//                })
+//                .addOnFailureListener(new OnFailureListener() {
+//                    @Override
+//                    public void onFailure(@NonNull Exception e) {
+//                        Toast.makeText(getApplicationContext(),"Failed",Toast.LENGTH_SHORT).show();
+//                    }
+//                });
+//        UploadTask uploadTask = storageRef.putFile(fileToUpload);
+//
+//        uploadTask.addOnFailureListener(new OnFailureListener() {
+//            @Override
+//            public void onFailure(@NonNull Exception e) {
+//                Toast.makeText(getApplicationContext(), "Not able to upload", Toast.LENGTH_SHORT).show();
+//            }
+//        });
+//
+//        uploadTask.addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+//            @Override
+//            public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+//                Toast.makeText(getApplicationContext(),"Se subio esta madre",Toast.LENGTH_SHORT).show();
+//            }
+//        });
+
+//        boolean delete = csv.delete();
+//        if(!delete){
+//            Toast.makeText(this,"File not deleted",Toast.LENGTH_SHORT).show();
+//        }
+
+    }
+
+    private void upload(){
+
+        Uri fileToUpload = Uri.fromFile(new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/PruebasSignal/prueba.csv"));
+        StorageReference fileRef = storage.child("prueba/prueba.csv");
+        final ProgressDialog progressDialog = new ProgressDialog(this);
+        progressDialog.setTitle("Uploading...");
+
+        fileRef.putFile(fileToUpload)
+                .addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                    @Override
+                    public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                        progressDialog.dismiss();
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Toast.makeText(getApplicationContext(),"Failed",Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .addOnProgressListener(new OnProgressListener<UploadTask.TaskSnapshot>() {
+                    @Override
+                    public void onProgress(UploadTask.TaskSnapshot taskSnapshot) {
+                        double progress = 100 * (taskSnapshot.getBytesTransferred()/ taskSnapshot.getTotalByteCount());
+                        progressDialog.setMessage(((int)progress)+"% Uploaded...");
+                    }
+                });
     }
 
     /**
@@ -392,7 +480,7 @@ public class MainActivity extends AppCompatActivity {
                     // construct a string from the valid bytes in the buffer
                     String readMessage = new String(readBuf, 0, msg.arg1);
                     textBt.setText(readMessage);
-                    convertDataFromBT(readMessage);
+                    //convertDataFromBT(readMessage);
 
                     if(Character.isDigit(readMessage.charAt(0)) || readMessage.equals("V")) {
                         sb.append(readMessage);//append string
